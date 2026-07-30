@@ -10,8 +10,8 @@ import re
 import urllib.request
 from PIL import Image, ImageDraw, ImageFont 
 
-# 1. Hybrid API Keys (Local සහ GitHub දෙකටම වැඩ කරන ක්‍රමය)
-# 1. API Keys (GitHub Secrets හරහා ලබා ගැනීම)
+# --- API Keys ---
+# ඔයාගේ අලුත් Gemini API Key එක මෙතන දාන්න
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
 FB_PAGE_ID = os.environ.get("FB_PAGE_ID", "YOUR_FB_PAGE_ID_HERE")
 FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN", "YOUR_FB_ACCESS_TOKEN_HERE")
@@ -24,9 +24,7 @@ day = today.strftime("%d")
 month_name = today.strftime("%B")
 
 print(f"අද දිනය: {month}/{day}")
-print("Cloud / Local Hybrid Bot ක්‍රියාත්මක වේ...\n")
 
-# --- History Tracking ---
 HISTORY_FILE = "posted_history.txt"
 if not os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, "w", encoding="utf-8") as f:
@@ -40,15 +38,10 @@ def save_to_history(event_text):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(event_text + "\n")
 
-# --- Hybrid Font Loading (Windows + Linux/GitHub) ---
 def get_font(size, font_name="impact.ttf", fallback="arialbd.ttf"):
     local_path = f"C:\\Windows\\Fonts\\{font_name}"
-    
-    # 1. Local (VS Code) එකේදී Windows Font එක ගනී
     if os.path.exists(local_path):
         return ImageFont.truetype(local_path, size)
-    
-    # 2. GitHub (Cloud) එකේදී අන්තර්ජාලයෙන් බාගත කරගනී
     if not os.path.exists(font_name):
         try:
             urllib.request.urlretrieve("https://github.com/matomo-org/travis-scripts/raw/master/fonts/Impact.ttf", font_name)
@@ -56,7 +49,6 @@ def get_font(size, font_name="impact.ttf", fallback="arialbd.ttf"):
             return ImageFont.load_default()
     return ImageFont.truetype(font_name, size)
 
-# --- පින්තූරයේ අකුරු ලිවීම ---
 def add_text_to_image(image_path, title_text, date_text):
     try:
         img = Image.open(image_path)
@@ -98,9 +90,8 @@ def add_text_to_image(image_path, title_text, date_text):
         print(f"පින්තූරයේ අකුරු ලිවීමේදී දෝෂයක්: {e}")
         return image_path
 
-# --- Wikipedia දත්ත ලබා ගැනීම ---
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.0'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.1'}
 
 try:
     response = requests.get(url, headers=headers)
@@ -214,4 +205,7 @@ if response and response.status_code == 200:
         if upload_success:
             save_to_history(english_text)
             print("\n🎉 පළමු පෝස්ට් එක සම්පූර්ණයි! Cloud Automation සඳහා කේතය නතර වේ.")
-            break # එක පෝස්ට් එකක් දැම්මට පස්සේ Script එක නවතිනවා (GitHub ක්‍රමය)
+        else:
+            print("\n⚠️ අසාර්ථක විය. Script එක නතර වේ (Loop වීම වැළැක්වීමට).")
+            
+        break # <--- වැදගත්ම තැන: සාර්ථක වුණත්, අසාර්ථක වුණත් ඌ මෙතනින් Loop එකෙන් එළියට පනිනවා!
