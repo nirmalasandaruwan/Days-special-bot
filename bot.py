@@ -115,7 +115,7 @@ def add_text_to_image(image_path, title_text, date_text):
         return image_path
 
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.6'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/4.0'}
 
 try:
     response = requests.get(url, headers=headers)
@@ -124,34 +124,55 @@ except:
 
 if response and response.status_code == 200:
     data = response.json()
-    all_events = data.get('events', []) + data.get('holidays', [])
-    random.shuffle(all_events)
     
-    print(f"මුළු සිදුවීම් {len(all_events)} ක් සොයාගන්නා ලදී.")
+    # සිදුවීම් සහ විශේෂ දින වෙන වෙනම වෙන් කරගැනීම
+    events_list = data.get('events', [])
+    holidays_list = data.get('holidays', [])
     
-    for event in all_events:
-        english_text = event.get('text', '')
-        if is_already_posted(english_text):
-            continue
-            
-        historical_year = event.get('year', '')
+    random.shuffle(events_list)
+    random.shuffle(holidays_list)
+    
+    selected_event = None
+    event_type = ""
+
+    # පළමුවෙන්ම අද දවසට අදාළ විශේෂ දිනයක් (Holiday/Observance) තියෙනවද බලයි
+    for holiday in holidays_list:
+        english_text = holiday.get('text', '')
+        if not is_already_posted(english_text):
+            selected_event = holiday
+            event_type = "විශේෂ දිනයක්"
+            break
+
+    # විශේෂ දින මුකුත් නැත්නම් (හෝ ඒ ඔක්කොම කලින් දාලා නම්), ඉතිහාස කතාවක් තෝරගනී
+    if not selected_event:
+        for event in events_list:
+            english_text = event.get('text', '')
+            if not is_already_posted(english_text):
+                selected_event = event
+                event_type = "ඉතිහාස සිදුවීමක්"
+                break
+                
+    if selected_event:
+        english_text = selected_event.get('text', '')
+        historical_year = selected_event.get('year', '')
         display_date = f"{month_name} {day}, {historical_year}" if historical_year else f"{month_name} {day}"
             
         article_link = "https://en.wikipedia.org/wiki/Main_Page"
-        if 'pages' in event and len(event['pages']) > 0:
-            article_link = event['pages'][0].get('content_urls', {}).get('desktop', {}).get('page', article_link)
+        if 'pages' in selected_event and len(selected_event['pages']) > 0:
+            article_link = selected_event['pages'][0].get('content_urls', {}).get('desktop', {}).get('page', article_link)
 
-        print(f"\nසිදුවීම තෝරාගන්නා ලදී: {english_text[:60]}...")
+        print(f"\n{event_type} තෝරාගන්නා ලදී: {english_text[:60]}...")
         
+        # AI Prompt එක පොඩ්ඩක් වෙනස් කළා විශේෂ දින වලටත් ගැලපෙන්න
         master_prompt = f"""
-        Analyze this event: {english_text}
+        Analyze this event or special day: {english_text}
         You must provide 3 things in EXACTLY the following format:
         [TITLE]
-        A short 2 to 4 word punchy English title for this event (UPPERCASE).
+        A short 2 to 4 word punchy English title for this (UPPERCASE).
         [IMAGE_PROMPT]
-        A highly detailed, cinematic background image prompt in English representing this event. DO NOT INCLUDE ANY TEXT IN THE IMAGE PROMPT.
+        A highly detailed, cinematic background image prompt in English representing this. DO NOT INCLUDE ANY TEXT IN THE IMAGE PROMPT.
         [SINHALA_POST]
-        Write a highly detailed Facebook post in Sinhala. MUST start with an exciting hook like "අද වගේ දවසක...". Add 4 relevant hashtags. No external links.
+        Write a highly detailed Facebook post in Sinhala. If it's a historical event, start with "අද වගේ දවසක...". If it's a special day/holiday, start with an exciting hook celebrating the day. Add 4 relevant hashtags. No external links.
         """
         
         short_title = "ON THIS DAY"
@@ -176,59 +197,57 @@ if response and response.status_code == 200:
                 print(f"⚠️ AI ලිමිට්/දෝෂයක්. තත්පර 20කින් නැවත බලයි... ({e})")
                 time.sleep(20) 
 
-        if not post_content: 
-            continue
-            
-        if not detailed_img_prompt: 
-            detailed_img_prompt = f"A cinematic scene representing: {short_title}. NO TEXT."
+        if post_content:
+            if not detailed_img_prompt: 
+                detailed_img_prompt = f"A cinematic scene representing: {short_title}. NO TEXT."
 
-        final_image_filename = None 
-        print(f"FLUX AI මගින් පින්තූරය අඳිමින් පවතී...")
-        encoded_prompt = urllib.parse.quote(detailed_img_prompt)
-        random_seed = random.randint(1, 1000000)
-        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&nologo=true&model=flux&seed={random_seed}"
-        
-        for attempt in range(3):
+            final_image_filename = None 
+            print(f"FLUX AI මගින් පින්තූරය අඳිමින් පවතී...")
+            encoded_prompt = urllib.parse.quote(detailed_img_prompt)
+            random_seed = random.randint(1, 1000000)
+            image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1080&height=1080&nologo=true&model=flux&seed={random_seed}"
+            
+            for attempt in range(3):
+                try:
+                    img_data = requests.get(image_url).content
+                    base_filename = "base_image_temp.jpg"
+                    with open(base_filename, "wb") as f: f.write(img_data)
+                    
+                    print("පින්තූරය මත අකුරු සටහන් කරමින් පවතී...")
+                    final_image_filename = add_text_to_image(base_filename, short_title, display_date)
+                    
+                    if os.path.exists(base_filename): os.remove(base_filename)
+                    break 
+                except:
+                    time.sleep(5)
+            
+            final_post_text = f"{post_content}\n\n🔗 වැඩිදුර කියවන්න (Wikipedia): {article_link}"
+
+            upload_success = False
             try:
-                img_data = requests.get(image_url).content
-                base_filename = "base_image_temp.jpg"
-                with open(base_filename, "wb") as f: f.write(img_data)
+                print("Facebook පිටුවට පෝස්ට් කරමින් පවතී...")
+                fb_base_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}"
+                if final_image_filename and os.path.exists(final_image_filename):
+                    fb_response = requests.post(f"{fb_base_url}/photos", data={'message': final_post_text, 'access_token': FB_ACCESS_TOKEN}, files={'source': open(final_image_filename, 'rb')})
+                else:
+                    fb_response = requests.post(f"{fb_base_url}/feed", data={'message': final_post_text, 'access_token': FB_ACCESS_TOKEN})
                 
-                print("පින්තූරය මත අකුරු සටහන් කරමින් පවතී...")
-                final_image_filename = add_text_to_image(base_filename, short_title, display_date)
-                
-                if os.path.exists(base_filename): os.remove(base_filename)
-                break 
-            except:
-                time.sleep(5)
-        
-        final_post_text = f"{post_content}\n\n🔗 වැඩිදුර කියවන්න (Wikipedia): {article_link}"
-
-        upload_success = False
-        try:
-            print("Facebook පිටුවට පෝස්ට් කරමින් පවතී...")
-            fb_base_url = f"https://graph.facebook.com/v19.0/{FB_PAGE_ID}"
+                if fb_response.status_code == 200: 
+                    print("✅ ✅ ✅ පෝස්ට් එක සාර්ථකව Facebook පිටුවට පළ කරන ලදී!")
+                    upload_success = True
+                else:
+                    print(f"❌ Facebook දෝෂයක්: {fb_response.text}")
+            except Exception as e:
+                print(f"❌ Upload දෝෂයක්: {e}")
+            
             if final_image_filename and os.path.exists(final_image_filename):
-                fb_response = requests.post(f"{fb_base_url}/photos", data={'message': final_post_text, 'access_token': FB_ACCESS_TOKEN}, files={'source': open(final_image_filename, 'rb')})
+                try: os.remove(final_image_filename)
+                except: pass
+                
+            if upload_success:
+                save_to_history(english_text)
+                print("\n🎉 පෝස්ට් එක සම්පූර්ණයි! Cloud Automation සඳහා කේතය නතර වේ.")
             else:
-                fb_response = requests.post(f"{fb_base_url}/feed", data={'message': final_post_text, 'access_token': FB_ACCESS_TOKEN})
-            
-            if fb_response.status_code == 200: 
-                print("✅ ✅ ✅ පෝස්ට් එක සාර්ථකව Facebook පිටුවට පළ කරන ලදී!")
-                upload_success = True
-            else:
-                print(f"❌ Facebook දෝෂයක්: {fb_response.text}")
-        except Exception as e:
-            print(f"❌ Upload දෝෂයක්: {e}")
-        
-        if final_image_filename and os.path.exists(final_image_filename):
-            try: os.remove(final_image_filename)
-            except: pass
-            
-        if upload_success:
-            save_to_history(english_text)
-            print("\n🎉 පළමු පෝස්ට් එක සම්පූර්ණයි! Cloud Automation සඳහා කේතය නතර වේ.")
+                print("\n⚠️ අසාර්ථක විය. Script එක නතර වේ (Loop වීම වැළැක්වීමට).")
         else:
-            print("\n⚠️ අසාර්ථක විය. Script එක නතර වේ (Loop වීම වැළැක්වීමට).")
-            
-        break
+            print("පෝස්ට් විස්තරය නොමැත.")
