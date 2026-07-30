@@ -1,6 +1,6 @@
 import requests
 from google import genai
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import time
 import os
 import urllib.parse 
@@ -17,12 +17,15 @@ FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN", "YOUR_FB_ACCESS_TOKEN_HERE")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-today = datetime.now()
+# --- Sri Lanka Timezone Fix (UTC +5:30) ---
+sl_tz = timezone(timedelta(hours=5, minutes=30))
+today = datetime.now(sl_tz)
+
 month = today.strftime("%m")
 day = today.strftime("%d")
 month_name = today.strftime("%B")
 
-print(f"අද දිනය: {month}/{day}")
+print(f"ශ්‍රී ලංකා වේලාවෙන් අද දිනය: {month}/{day}")
 
 HISTORY_FILE = "posted_history.txt"
 if not os.path.exists(HISTORY_FILE):
@@ -68,7 +71,6 @@ def add_text_to_image(image_path, title_text, date_text):
         draw = ImageDraw.Draw(img)
         width, height = img.size
         
-        # අලුත් Dynamic Font Sizing කෑල්ල (Smoothly resizes)
         font_size = 95
         font_title = get_cloud_font(font_size)
         wrapped_title = textwrap.fill(title_text, width=16)
@@ -76,7 +78,6 @@ def add_text_to_image(image_path, title_text, date_text):
         bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
         title_w = bbox_title[2] - bbox_title[0]
         
-        # අකුරු පින්තූරෙන් එළියට පනිනවා නම්, ගාණට fit වෙනකම් සයිස් එක ටික ටික අඩු කරයි
         while title_w > (width - 60) and font_size > 30:
             font_size -= 2
             font_title = get_cloud_font(font_size)
@@ -89,7 +90,7 @@ def add_text_to_image(image_path, title_text, date_text):
         title_y = height - title_h - 180 
 
         font_date = get_cloud_font(45)
-        bbox_date = draw.textbbox((0, 0), date_text, font=font_date)
+        bbox_date = draw.textbbox((0, 0), date_text, font_date)
         date_w = bbox_date[2] - bbox_date[0]
         date_x = (width - date_w) / 2
         date_y = title_y + title_h + 30
@@ -114,7 +115,7 @@ def add_text_to_image(image_path, title_text, date_text):
         return image_path
 
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.5'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.6'}
 
 try:
     response = requests.get(url, headers=headers)
