@@ -11,7 +11,6 @@ import urllib.request
 from PIL import Image, ImageDraw, ImageFont 
 
 # --- API Keys ---
-# ඔයාගේ අලුත් Gemini API Key එක මෙතන දාන්න
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
 FB_PAGE_ID = os.environ.get("FB_PAGE_ID", "YOUR_FB_PAGE_ID_HERE")
 FB_ACCESS_TOKEN = os.environ.get("FB_ACCESS_TOKEN", "YOUR_FB_ACCESS_TOKEN_HERE")
@@ -38,16 +37,30 @@ def save_to_history(event_text):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(event_text + "\n")
 
-def get_font(size, font_name="impact.ttf", fallback="arialbd.ttf"):
-    local_path = f"C:\\Windows\\Fonts\\{font_name}"
+# ---- අලුත් කරන ලද ෆොන්ට් ලොජික් එක ----
+def get_cloud_font(size):
+    font_url = "https://github.com/google/fonts/raw/main/ofl/oswaldbold/Oswald-Bold.ttf"
+    font_filename = "Oswald-Bold.ttf"
+    
+    # ලැප් එකේ දුවනවා නම් Windows Font එක ගනීවි
+    local_path = "C:\\Windows\\Fonts\\impact.ttf"
     if os.path.exists(local_path):
-        return ImageFont.truetype(local_path, size)
-    if not os.path.exists(font_name):
+        try: return ImageFont.truetype(local_path, size)
+        except: pass
+
+    # GitHub Cloud එකේ දුවනවා නම් Google Fonts වලින් ඩවුන්ලෝඩ් කරගනීවි
+    if not os.path.exists(font_filename):
         try:
-            urllib.request.urlretrieve("https://github.com/matomo-org/travis-scripts/raw/master/fonts/Impact.ttf", font_name)
-        except:
+            print("ෆොන්ට් එක ඩවුන්ලෝඩ් කරමින් පවතී...")
+            urllib.request.urlretrieve(font_url, font_filename)
+        except Exception as e:
+            print(f"ෆොන්ට් ඩවුන්ලෝඩ් දෝෂයක්: {e}")
             return ImageFont.load_default()
-    return ImageFont.truetype(font_name, size)
+    try:
+        return ImageFont.truetype(font_filename, size)
+    except:
+        return ImageFont.load_default()
+# ----------------------------------------
 
 def add_text_to_image(image_path, title_text, date_text):
     try:
@@ -55,10 +68,10 @@ def add_text_to_image(image_path, title_text, date_text):
         draw = ImageDraw.Draw(img)
         width, height = img.size
         
-        font_title = get_font(80, "impact.ttf")
-        font_date = get_font(40, "arialbd.ttf")
+        font_title = get_cloud_font(90)
+        font_date = get_cloud_font(50)
 
-        wrapped_title = textwrap.fill(title_text, width=15)
+        wrapped_title = textwrap.fill(title_text, width=20)
         bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
         title_w = bbox_title[2] - bbox_title[0]
         title_h = bbox_title[3] - bbox_title[1]
@@ -191,7 +204,7 @@ if response and response.status_code == 200:
                 fb_response = requests.post(f"{fb_base_url}/feed", data={'message': final_post_text, 'access_token': FB_ACCESS_TOKEN})
             
             if fb_response.status_code == 200: 
-                print("✅✅✅ පෝස්ට් එක සාර්ථකව Facebook පිටුවට පළ කරන ලදී!")
+                print("✅ ✅ ✅ පෝස්ට් එක සාර්ථකව Facebook පිටුවට පළ කරන ලදී!")
                 upload_success = True
             else:
                 print(f"❌ Facebook දෝෂයක්: {fb_response.text}")
@@ -208,4 +221,4 @@ if response and response.status_code == 200:
         else:
             print("\n⚠️ අසාර්ථක විය. Script එක නතර වේ (Loop වීම වැළැක්වීමට).")
             
-        break # <--- වැදගත්ම තැන: සාර්ථක වුණත්, අසාර්ථක වුණත් ඌ මෙතනින් Loop එකෙන් එළියට පනිනවා!
+        break
