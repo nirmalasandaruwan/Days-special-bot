@@ -28,6 +28,7 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
           FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+          SCRAPER_API_KEY: ${{ secrets.SCRAPER_API_KEY }} # <--- මේකයි අලුතින් දැම්මේ
         run: python bot.py
 
       - name: Save History
