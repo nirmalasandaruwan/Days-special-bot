@@ -37,18 +37,23 @@ def save_to_history(event_text):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(event_text + "\n")
 
-# ---- අලුත් කරන ලද ෆොන්ට් ලොජික් එක ----
+# ---- Bulletproof Font Logic ----
 def get_cloud_font(size):
-    font_url = "https://github.com/google/fonts/raw/main/ofl/oswaldbold/Oswald-Bold.ttf"
-    font_filename = "Oswald-Bold.ttf"
-    
-    # ලැප් එකේ දුවනවා නම් Windows Font එක ගනීවි
-    local_path = "C:\\Windows\\Fonts\\impact.ttf"
-    if os.path.exists(local_path):
-        try: return ImageFont.truetype(local_path, size)
+    # 1. ඔයාගේ Windows ලැප් එකේ දුවද්දී ගන්න ෆොන්ට් එක
+    windows_font = "C:\\Windows\\Fonts\\impact.ttf"
+    if os.path.exists(windows_font):
+        try: return ImageFont.truetype(windows_font, size)
         except: pass
 
-    # GitHub Cloud එකේ දුවනවා නම් Google Fonts වලින් ඩවුන්ලෝඩ් කරගනීවි
+    # 2. GitHub Cloud (Ubuntu) සර්වර් එකේ ඉබේම තියෙන ෆොන්ට් එක (ඩවුන්ලෝඩ් වෙන්න ඕනේ නෑ!)
+    ubuntu_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    if os.path.exists(ubuntu_font):
+        try: return ImageFont.truetype(ubuntu_font, size)
+        except: pass
+
+    # 3. මොකක් හරි වෙලා ඒකත් නැති වුණොත් ගන්න අලුත්ම ෂුවර් ලින්ක් එක
+    font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/Oswald-Bold.ttf"
+    font_filename = "Oswald-Bold.ttf"
     if not os.path.exists(font_filename):
         try:
             print("ෆොන්ට් එක ඩවුන්ලෝඩ් කරමින් පවතී...")
@@ -60,7 +65,7 @@ def get_cloud_font(size):
         return ImageFont.truetype(font_filename, size)
     except:
         return ImageFont.load_default()
-# ----------------------------------------
+# --------------------------------
 
 def add_text_to_image(image_path, title_text, date_text):
     try:
@@ -68,25 +73,26 @@ def add_text_to_image(image_path, title_text, date_text):
         draw = ImageDraw.Draw(img)
         width, height = img.size
         
-        font_title = get_cloud_font(90)
-        font_date = get_cloud_font(50)
+        # අකුරු සයිස් තවත් ලොකු කළා
+        font_title = get_cloud_font(120) 
+        font_date = get_cloud_font(60)
 
-        wrapped_title = textwrap.fill(title_text, width=20)
+        wrapped_title = textwrap.fill(title_text, width=15)
         bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
         title_w = bbox_title[2] - bbox_title[0]
         title_h = bbox_title[3] - bbox_title[1]
         
         title_x = (width - title_w) / 2
-        title_y = height - title_h - 150 
+        title_y = height - title_h - 200 
 
         bbox_date = draw.textbbox((0, 0), date_text, font=font_date)
         date_w = bbox_date[2] - bbox_date[0]
         date_x = (width - date_w) / 2
-        date_y = title_y + title_h + 30
+        date_y = title_y + title_h + 40
 
         outline_color = "black"
         text_color = "white"
-        thickness = 4
+        thickness = 5
         
         for adj_x in range(-thickness, thickness+1):
             for adj_y in range(-thickness, thickness+1):
@@ -104,7 +110,7 @@ def add_text_to_image(image_path, title_text, date_text):
         return image_path
 
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.1'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.2'}
 
 try:
     response = requests.get(url, headers=headers)
