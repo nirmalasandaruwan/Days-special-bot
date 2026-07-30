@@ -37,21 +37,17 @@ def save_to_history(event_text):
     with open(HISTORY_FILE, "a", encoding="utf-8") as f:
         f.write(event_text + "\n")
 
-# ---- Bulletproof Font Logic ----
 def get_cloud_font(size):
-    # 1. ඔයාගේ Windows ලැප් එකේ දුවද්දී ගන්න ෆොන්ට් එක
     windows_font = "C:\\Windows\\Fonts\\impact.ttf"
     if os.path.exists(windows_font):
         try: return ImageFont.truetype(windows_font, size)
         except: pass
 
-    # 2. GitHub Cloud (Ubuntu) සර්වර් එකේ ඉබේම තියෙන ෆොන්ට් එක (ඩවුන්ලෝඩ් වෙන්න ඕනේ නෑ!)
     ubuntu_font = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     if os.path.exists(ubuntu_font):
         try: return ImageFont.truetype(ubuntu_font, size)
         except: pass
 
-    # 3. මොකක් හරි වෙලා ඒකත් නැති වුණොත් ගන්න අලුත්ම ෂුවර් ලින්ක් එක
     font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/oswald/Oswald-Bold.ttf"
     font_filename = "Oswald-Bold.ttf"
     if not os.path.exists(font_filename):
@@ -65,7 +61,6 @@ def get_cloud_font(size):
         return ImageFont.truetype(font_filename, size)
     except:
         return ImageFont.load_default()
-# --------------------------------
 
 def add_text_to_image(image_path, title_text, date_text):
     try:
@@ -73,26 +68,27 @@ def add_text_to_image(image_path, title_text, date_text):
         draw = ImageDraw.Draw(img)
         width, height = img.size
         
-        # අකුරු සයිස් තවත් ලොකු කළා
-        font_title = get_cloud_font(120) 
-        font_date = get_cloud_font(60)
+        # අකුරු සයිස් එක ගාණට හැදුවා (120 -> 85)
+        font_title = get_cloud_font(85) 
+        font_date = get_cloud_font(45)
 
-        wrapped_title = textwrap.fill(title_text, width=15)
+        # පේළියකට අකුරු 18ක් විතර එන්න හැදුවා (එතකොට එළියට පනින්නේ නෑ)
+        wrapped_title = textwrap.fill(title_text, width=18)
         bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
         title_w = bbox_title[2] - bbox_title[0]
         title_h = bbox_title[3] - bbox_title[1]
         
         title_x = (width - title_w) / 2
-        title_y = height - title_h - 200 
+        title_y = height - title_h - 180 
 
         bbox_date = draw.textbbox((0, 0), date_text, font=font_date)
         date_w = bbox_date[2] - bbox_date[0]
         date_x = (width - date_w) / 2
-        date_y = title_y + title_h + 40
+        date_y = title_y + title_h + 30
 
         outline_color = "black"
         text_color = "white"
-        thickness = 5
+        thickness = 4
         
         for adj_x in range(-thickness, thickness+1):
             for adj_y in range(-thickness, thickness+1):
@@ -110,7 +106,7 @@ def add_text_to_image(image_path, title_text, date_text):
         return image_path
 
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.2'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.3'}
 
 try:
     response = requests.get(url, headers=headers)
@@ -172,7 +168,6 @@ if response and response.status_code == 200:
                 time.sleep(20) 
 
         if not post_content: 
-            print("පෝස්ට් විස්තරය නොමැති බැවින් මීළඟ සිදුවීමට යයි.")
             continue
             
         if not detailed_img_prompt: 
