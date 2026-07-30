@@ -1,0 +1,37 @@
+name: Auto Post to Facebook
+
+on:
+  schedule:
+    - cron: '0 * * * *' # මේකෙන් හැම පැයකටම සැරයක් ඉබේම රන් වෙනවා
+  workflow_dispatch: # ඔයාට ඕනේ වෙලාවක බොත්තමක් ඔබලා රන් කරන්නත් පුළුවන්
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # History ෆයිල් එක සේව් කරන්න අවසර දීම
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Bot
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          FB_ACCESS_TOKEN: ${{ secrets.FB_ACCESS_TOKEN }}
+        run: python bot.py
+
+      - name: Save History
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Updated posted history"
+          file_pattern: "posted_history.txt"
