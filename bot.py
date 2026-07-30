@@ -68,19 +68,27 @@ def add_text_to_image(image_path, title_text, date_text):
         draw = ImageDraw.Draw(img)
         width, height = img.size
         
-        # අකුරු සයිස් එක ගාණට හැදුවා (120 -> 85)
-        font_title = get_cloud_font(85) 
-        font_date = get_cloud_font(45)
-
-        # පේළියකට අකුරු 18ක් විතර එන්න හැදුවා (එතකොට එළියට පනින්නේ නෑ)
-        wrapped_title = textwrap.fill(title_text, width=18)
+        # අලුත් Dynamic Font Sizing කෑල්ල (Smoothly resizes)
+        font_size = 95
+        font_title = get_cloud_font(font_size)
+        wrapped_title = textwrap.fill(title_text, width=16)
+        
         bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
         title_w = bbox_title[2] - bbox_title[0]
+        
+        # අකුරු පින්තූරෙන් එළියට පනිනවා නම්, ගාණට fit වෙනකම් සයිස් එක ටික ටික අඩු කරයි
+        while title_w > (width - 60) and font_size > 30:
+            font_size -= 2
+            font_title = get_cloud_font(font_size)
+            bbox_title = draw.multiline_textbbox((0, 0), wrapped_title, font=font_title, align="center")
+            title_w = bbox_title[2] - bbox_title[0]
+
         title_h = bbox_title[3] - bbox_title[1]
         
         title_x = (width - title_w) / 2
         title_y = height - title_h - 180 
 
+        font_date = get_cloud_font(45)
         bbox_date = draw.textbbox((0, 0), date_text, font=font_date)
         date_w = bbox_date[2] - bbox_date[0]
         date_x = (width - date_w) / 2
@@ -106,7 +114,7 @@ def add_text_to_image(image_path, title_text, date_text):
         return image_path
 
 url = f"https://en.wikipedia.org/api/rest_v1/feed/onthisday/all/{month}/{day}"
-headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.3'}
+headers = {'accept': 'application/json', 'User-Agent': 'DaySpecialBot/3.5'}
 
 try:
     response = requests.get(url, headers=headers)
